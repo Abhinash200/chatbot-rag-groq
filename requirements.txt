@@ -1,5 +1,9 @@
-openai
+groq
 langchain
 faiss-cpu
 pypdf
 tiktoken
+sentence-transformers
+python-dotenv
+langchain-community
+langchain-huggingface

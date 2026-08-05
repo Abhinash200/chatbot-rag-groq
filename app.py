@@ -1,18 +1,17 @@
 # Import necessary libraries
-import databutton as db
 import streamlit as st
-import openai
+from groq import Groq
 from brain import get_index_for_pdf
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Set the title for the Streamlit app
 st.title("RAG enhanced Chatbot")
 
-# Set up the OpenAI API key from databutton secrets
-os.environ["OPENAI_API_KEY"] = db.secrets.get("OPENAI_API_KEY")
-openai.api_key = db.secrets.get("OPENAI_API_KEY")
+# Set up the Groq API key from environment variables
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 # Cached function to create a vectordb for the provided PDF files
@@ -21,7 +20,7 @@ def create_vectordb(files, filenames):
     # Show a spinner while creating the vectordb
     with st.spinner("Vector database"):
         vectordb = get_index_for_pdf(
-            [file.getvalue() for file in files], filenames, openai.api_key
+            [file.getvalue() for file in files], filenames
         )
     return vectordb
 
@@ -75,7 +74,10 @@ if question:
     # Search the vectordb for similar content to the user's question
     search_results = vectordb.similarity_search(question, k=3)
     # search_results
-    pdf_extract = "/n ".join([result.page_content for result in search_results])
+    pdf_extract = "\n\n".join([
+        f"Context: {result.page_content}\nMetadata: filename: {result.metadata.get('filename', 'unknown')}, page: {result.metadata.get('page', 'unknown')}" 
+        for result in search_results
+    ])
 
     # Update the prompt with the pdf extract
     prompt[0] = {
@@ -95,10 +97,10 @@ if question:
     # Call ChatGPT with streaming and display the response as it comes
     response = []
     result = ""
-    for chunk in openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", messages=prompt, stream=True
+    for chunk in groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile", messages=prompt, stream=True
     ):
-        text = chunk.choices[0].get("delta", {}).get("content")
+        text = chunk.choices[0].delta.content
         if text is not None:
             response.append(text)
             result = "".join(response).strip()

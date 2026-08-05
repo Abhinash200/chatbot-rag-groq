@@ -1,13 +1,12 @@
-import databutton as db
 import re
 from io import BytesIO
 from typing import Tuple, List
 import pickle
 
-from langchain.docstore.document import Document
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores.faiss import FAISS
+from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
 from pypdf import PdfReader
 import faiss
 
@@ -49,16 +48,17 @@ def text_to_docs(text: List[str], filename: str) -> List[Document]:
     return doc_chunks
 
 
-def docs_to_index(docs, openai_api_key):
-    index = FAISS.from_documents(docs, OpenAIEmbeddings(openai_api_key=openai_api_key))
+def docs_to_index(docs):
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    index = FAISS.from_documents(docs, embeddings)
     return index
 
 
-def get_index_for_pdf(pdf_files, pdf_names, openai_api_key):
+def get_index_for_pdf(pdf_files, pdf_names):
     documents = []
     for pdf_file, pdf_name in zip(pdf_files, pdf_names):
         text, filename = parse_pdf(BytesIO(pdf_file), pdf_name)
         documents = documents + text_to_docs(text, filename)
-    index = docs_to_index(documents, openai_api_key)
+    index = docs_to_index(documents)
     return index
 
